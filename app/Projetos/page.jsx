@@ -9,9 +9,21 @@ export default function Projetos() {
     <>
       <Navegacao />
 
-    <Card titulo = "Calculador" descricao= "projeto de uma calculadora"></Card>
+    
+<div  className="flex flex-wrap">
 
-    <Card titulo = "projeto tcc" descricao= "tcc next" url="https://github.com/davidcontadecursoeusoprofissio-cybe/cadastro"></Card>
+  <Card titulo = "Projeto Java" descricao= "Um projeto com intuito de cadastra pessoas" url="https://github.com/davidcontadecursoeusoprofissio-cybe/Estudos" img="imagem/Captura de tela 2026-08-03 093429.png"></Card>
+  <Card titulo = "Projeto "  ></Card>
+  <Card titulo = "Projeto " ></Card>
+  <Card titulo = "Projeto "  ></Card>
+  <Card titulo = "Projeto "  ></Card>
+  <Card titulo = "Projeto "  ></Card>
+  
+  
+  
+  
+    
+</div>
 
       <Navegacao2 />
     </>
