@@ -1,26 +1,69 @@
+"use client";
 
+import { useEffect, useState } from "react";
 
-export default function Card(Props){
-    return(
+export default function Card() {
+  const [projetos, setProjetos] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
 
-        <>
-        <div className=" flex flex-col  bg-blue-400 text-white h-70 w-100 mt-5 ms-20 rounded-lg ">
-        {/* <img src="" alt="" /> */}
-        <img className="w-full h-40" src={Props.img} alt="" />
-        <h1 className="ms-40 mt-3">{Props.titulo}</h1>
+  useEffect(() => {
+    async function buscarProjetos() {
+      try {
+        const resposta = await fetch("/api/Projeto");
 
-        <p className="ms-10 mt-1 text-[12px]">{Props.descricao}</p>
+        if (!resposta.ok) {
+          throw new Error(`Erro ${resposta.status} ao buscar os projetos.`);
+        }
 
+        const dadosDoBanco = await resposta.json();
+        setProjetos(dadosDoBanco);
+      } catch (error) {
+        console.error("Erro ao buscar projetos:", error);
+        setErro(error.message || "Não foi possível carregar os projetos.");
+      } finally {
+        setCarregando(false);
+      }
+    }
 
-        {Props.url && (
-            <a href={Props.url} target="_blank" rel="noopener noreferrer">
-                <button className="bg-green-400 h-7 w-70 rounded-lg cursor-pointer mt-4 ms-15">Clique aqui para ver o código</button>
-            </a>
-        )}
+    buscarProjetos();
+  }, []);
 
-     
-        </div>
-        
-        </>
-    )
+  if (carregando) {
+    return <p className="p-6 text-blue-700">Carregando projetos...</p>;
+  }
+
+  if (erro) {
+    return <p className="p-6 text-red-600">{erro}</p>;
+  }
+
+  if (projetos.length === 0) {
+    return <p className="p-6 text-slate-500">Nenhum projeto cadastrado.</p>;
+  }
+
+  return (
+    <ul className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3">
+      {projetos.map((projeto) => (
+        <li
+          key={projeto.id}
+          className="overflow-hidden rounded-lg bg-blue-400 text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
+        >
+          {projeto.img && (
+            <img
+              src={projeto.img}
+              alt={`Imagem do projeto ${projeto.titulo}`}
+              className="h-40 w-full object-cover"
+            />
+          )}
+
+          <div className="p-5">
+            <h2 className="text-xl font-bold">{projeto.titulo}</h2>
+            <p className="mt-3 text-sm leading-6 text-blue-50">
+              {projeto.descricao}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 }
