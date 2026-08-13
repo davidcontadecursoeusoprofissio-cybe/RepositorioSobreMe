@@ -9,7 +9,7 @@ export default function Card(Props){
         <img className="w-full h-40" src={Props.img} alt="" />
         <h1 className="ms-40 mt-3">{Props.titulo}</h1>
 
-        <p className="ms-10 mt-1">{Props.descricao}</p>
+        <p className="ms-10 mt-1 text-[12px]">{Props.descricao}</p>
 
 
         {Props.url && (
