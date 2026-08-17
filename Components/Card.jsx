@@ -61,7 +61,12 @@ export default function Card() {
             <p className="mt-3 text-sm leading-6 text-blue-50">
               {projeto.descricao}
             </p>
-          </div>
+    <div>
+  <button type="button" onClick={() => window.open(projeto.urlGit, "_blank")}>
+    Clique aqui para ir para o Git
+     </button>
+        </div>
+        </div>
         </li>
       ))}
     </ul>

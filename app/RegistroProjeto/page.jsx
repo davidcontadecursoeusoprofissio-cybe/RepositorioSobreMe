@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = "/api/RegistroProjeto";
+const API_URL = "/api/Projeto";
 
 function arquivoParaDataUrl(arquivo) {
   return new Promise((resolve, reject) => {
