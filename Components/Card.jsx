@@ -29,6 +29,26 @@ export default function Card() {
     buscarProjetos();
   }, []);
 
+  function abrirGit(projeto) {
+    const link =
+      projeto.urlGit ||
+      projeto.gitHub ||
+      projeto.github ||
+      projeto.githubUrl ||
+      projeto.url;
+
+    if (!link) {
+      alert("O projeto não possui um link do GitHub cadastrado.");
+      return;
+    }
+
+    const url = link.startsWith("http")
+      ? link
+      : `https://${link}`;
+
+    window.open(url, "_blank");
+  }
+
   if (carregando) {
     return <p className="p-6 text-blue-700">Carregando projetos...</p>;
   }
@@ -38,7 +58,11 @@ export default function Card() {
   }
 
   if (projetos.length === 0) {
-    return <p className="p-6 text-slate-500">Nenhum projeto cadastrado.</p>;
+    return (
+      <p className="p-6 text-slate-500">
+        Nenhum projeto cadastrado.
+      </p>
+    );
   }
 
   return (
@@ -57,18 +81,28 @@ export default function Card() {
           )}
 
           <div className="p-5">
-            <h2 className="text-xl font-bold">{projeto.titulo}</h2>
+            <h2 className="text-xl font-bold">
+              {projeto.titulo}
+            </h2>
+
             <p className="mt-3 text-sm leading-6 text-blue-50">
               {projeto.descricao}
             </p>
-    <div>
-  <button type="button" onClick={() => window.open(projeto.urlGit, "_blank")}>
-    Clique aqui para ir para o Git
-     </button>
-        </div>
-        </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={() => abrirGit(projeto)}
+                className="mt-4 rounded bg-white px-4 py-2 text-blue-600 transition hover:bg-blue-100"
+              >
+                Clique aqui para ir para o Git
+              </button>
+            </div>
+          </div>
         </li>
       ))}
     </ul>
   );
 }
+
+
