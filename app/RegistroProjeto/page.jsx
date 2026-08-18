@@ -101,7 +101,7 @@ export default function Page() {
       titulo: formData.titulo.trim(),
       descricao: formData.descricao.trim(),
       img: formData.img || null,
-      github: formData.github.trim(),
+      urlGit: formData.github.trim(),
     };
 
     try {
@@ -138,7 +138,7 @@ export default function Page() {
         titulo: "",
         descricao: "",
         img: "",
-        github: "",
+        github: ""
       });
 
       setImagem(null);
