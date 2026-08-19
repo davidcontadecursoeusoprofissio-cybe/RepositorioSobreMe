@@ -49,36 +49,6 @@ export default function Card() {
     window.open(url, "_blank");
   }
 
-  // FUNÇÃO PARA REMOVER
-  async function removerProjeto(id) {
-    const confirmar = window.confirm(
-      "Tem certeza que deseja remover este projeto?"
-    );
-
-    if (!confirmar) {
-      return;
-    }
-
-    try {
-      const resposta = await fetch(`/api/Projeto?id=${id}`, {
-        method: "DELETE",
-      });
-
-      if (!resposta.ok) {
-        throw new Error("Erro ao remover o projeto.");
-      }
-
-      // Remove da tela depois de remover do banco
-      setProjetos((projetosAtuais) =>
-        projetosAtuais.filter((projeto) => projeto.id !== id)
-      );
-
-    } catch (error) {
-      console.error("Erro ao remover projeto:", error);
-      alert("Erro ao remover o projeto.");
-    }
-  }
-
   if (carregando) {
     return <p className="p-6 text-blue-700">Carregando projetos...</p>;
   }
@@ -127,14 +97,6 @@ export default function Card() {
               >
                 Clique aqui para ir para o Git
               </button>
-
-              <button
-                type="button"
-                onClick={() => removerProjeto(projeto.id)}
-                className="mt-4 ml-2 rounded bg-red-600 px-4 py-2 text-white transition hover:bg-red-700"
-              >
-                Remover
-              </button>
             </div>
           </div>
         </li>
@@ -142,4 +104,5 @@ export default function Card() {
     </ul>
   );
 }
+
 
