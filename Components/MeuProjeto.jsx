@@ -2,35 +2,52 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = "/api/Projeto";
-
 export default function Page() {
   const [projetos, setProjetos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    carregarProjetos();
+    async function buscarProjetos() {
+      try {
+        const resposta = await fetch("/api/Projeto");
+
+        if (!resposta.ok) {
+          throw new Error("Erro ao buscar os projetos.");
+        }
+
+        const dados = await resposta.json();
+
+        setProjetos(dados);
+      } catch (error) {
+        console.error(error);
+        setErro(error.message);
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    buscarProjetos();
   }, []);
 
-  async function carregarProjetos() {
-    try {
-      const response = await fetch(API_URL);
+  function abrirGit(projeto) {
+    const link =
+      projeto.urlGit ||
+      projeto.gitHub ||
+      projeto.github ||
+      projeto.githubUrl ||
+      projeto.url;
 
-      if (!response.ok) {
-        throw new Error("Erro ao buscar projetos.");
-      }
-
-      const dados = await response.json();
-
-      setProjetos(dados);
-    } catch (error) {
-      console.error("Erro ao carregar projetos:", error);
-
-      setErro("Não foi possível carregar os projetos.");
-    } finally {
-      setCarregando(false);
+    if (!link) {
+      alert("O projeto não possui um link do GitHub cadastrado.");
+      return;
     }
+
+    const url = link.startsWith("http")
+      ? link
+      : `https://${link}`;
+
+    window.open(url, "_blank");
   }
 
   async function apagarProjeto(id) {
@@ -43,96 +60,79 @@ export default function Page() {
     }
 
     try {
-      const response = await fetch(`${API_URL}?id=${id}`, {
+      const resposta = await fetch(`/api/Projeto?id=${id}`, {
         method: "DELETE",
       });
 
-      if (!response.ok) {
-        throw new Error("Erro ao apagar projeto.");
+      if (!resposta.ok) {
+        throw new Error("Erro ao apagar o projeto.");
       }
 
-      // Remove o projeto da tela depois de apagar
-      setProjetos((listaAtual) =>
-        listaAtual.filter((projeto) => projeto.id !== id)
+      setProjetos((lista) =>
+        lista.filter((projeto) => projeto.id !== id)
       );
-
     } catch (error) {
-      console.error("Erro ao apagar projeto:", error);
-
-      alert("Não foi possível apagar o projeto.");
+      console.error(error);
+      alert(error.message);
     }
   }
 
+  if (carregando) {
+    return (
+      <main className="min-h-screen bg-slate-50 p-6">
+        <p className="text-blue-700">
+          Carregando projetos...
+        </p>
+      </main>
+    );
+  }
+
+  if (erro) {
+    return (
+      <main className="min-h-screen bg-slate-50 p-6">
+        <p className="text-red-600">
+          {erro}
+        </p>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-8 lg:px-12">
+    <main className="min-h-screen bg-slate-50 p-6 sm:p-10">
 
       <div className="mx-auto max-w-6xl">
 
         {/* TÍTULO */}
 
-        <div className="mb-10">
+        <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-blue-500">
+          Projetos
+        </p>
 
-          <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-blue-500">
-            Projetos
-          </p>
+        <h1 className="text-4xl font-black text-slate-950">
+          Meus Projetos
+        </h1>
 
-          <h1 className="text-4xl font-black tracking-tight text-slate-950">
-            Meus Projetos
-          </h1>
-
-          <p className="mt-3 text-slate-500">
-            Veja os projetos cadastrados no sistema.
-          </p>
-
-        </div>
-
-        {/* CARREGANDO */}
-
-        {carregando && (
-          <div className="rounded-2xl bg-white p-8 text-center shadow-lg">
-            <p className="font-semibold text-slate-500">
-              Carregando projetos...
-            </p>
-          </div>
-        )}
-
-        {/* ERRO */}
-
-        {!carregando && erro && (
-          <div className="rounded-2xl bg-red-100 p-5">
-            <p className="font-semibold text-red-700">
-              {erro}
-            </p>
-          </div>
-        )}
-
-        {/* NENHUM PROJETO */}
-
-        {!carregando && !erro && projetos.length === 0 && (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-lg">
-
-            <h2 className="text-xl font-bold text-slate-950">
-              Nenhum projeto cadastrado
-            </h2>
-
-            <p className="mt-2 text-slate-500">
-              Os projetos cadastrados aparecerão aqui.
-            </p>
-
-          </div>
-        )}
+        <p className="mt-3 text-slate-500">
+          Veja e gerencie os projetos cadastrados.
+        </p>
 
         {/* PROJETOS */}
 
-        {!carregando && !erro && projetos.length > 0 && (
+        {projetos.length === 0 ? (
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="mt-8 text-slate-500">
+            Nenhum projeto cadastrado.
+          </p>
+
+        ) : (
+
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 
             {projetos.map((projeto) => (
 
               <div
                 key={projeto.id}
-                className="overflow-hidden rounded-2xl bg-white shadow-lg transition hover:-translate-y-1"
+                className="overflow-hidden rounded-lg bg-blue-400 text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
               >
 
                 {/* IMAGEM */}
@@ -140,52 +140,45 @@ export default function Page() {
                 {projeto.img ? (
                   <img
                     src={projeto.img}
-                    alt={projeto.titulo}
-                    className="h-52 w-full object-cover"
+                    alt={`Imagem do projeto ${projeto.titulo}`}
+                    className="h-48 w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-52 w-full items-center justify-center bg-slate-200">
-                    <span className="font-semibold text-slate-400">
+                  <div className="flex h-48 items-center justify-center bg-blue-300">
+                    <p className="font-semibold">
                       Sem imagem
-                    </span>
+                    </p>
                   </div>
                 )}
 
-                {/* INFORMAÇÕES */}
+                {/* CONTEÚDO */}
 
                 <div className="p-5">
 
-                  <h2 className="mb-3 text-2xl font-black text-slate-950">
+                  <h2 className="text-xl font-bold">
                     {projeto.titulo}
                   </h2>
 
-                  <p className="mb-5 min-h-[72px] text-sm leading-6 text-slate-500">
+                  <p className="mt-3 text-sm leading-6 text-blue-50">
                     {projeto.descricao}
                   </p>
 
                   {/* BOTÕES */}
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="mt-5 flex flex-wrap gap-2">
 
-                    {/* GITHUB */}
-
-                    {projeto.urlGit && (
-                      <a
-                        href={projeto.urlGit}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-600"
-                      >
-                        Ver GitHub
-                      </a>
-                    )}
-
-                    {/* APAGAR */}
+                    <button
+                      type="button"
+                      onClick={() => abrirGit(projeto)}
+                      className="rounded bg-white px-4 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-100"
+                    >
+                      Ver GitHub
+                    </button>
 
                     <button
                       type="button"
                       onClick={() => apagarProjeto(projeto.id)}
-                      className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600"
+                      className="rounded bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600"
                     >
                       Apagar
                     </button>
