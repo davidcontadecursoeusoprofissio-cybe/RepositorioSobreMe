@@ -27,6 +27,7 @@ export default function Page() {
   const [imagem, setImagem] = useState(null);
   const [preview, setPreview] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [feedback, setFeedback] = useState({
     type: "",
     message: "",
@@ -123,7 +124,7 @@ export default function Page() {
             errorMessage = errorData.erro;
           }
         } catch {
-          // Mantém a mensagem padrão
+          // mantém a mensagem padrão
         }
 
         throw new Error(errorMessage);
@@ -138,7 +139,7 @@ export default function Page() {
         titulo: "",
         descricao: "",
         img: "",
-        github: ""
+        github: "",
       });
 
       setImagem(null);
@@ -151,8 +152,7 @@ export default function Page() {
       setFeedback({
         type: "error",
         message:
-          error.message ||
-          "Não foi possível cadastrar o projeto.",
+          error.message || "Não foi possível cadastrar o projeto.",
       });
     } finally {
       setIsSubmitting(false);
@@ -299,7 +299,7 @@ export default function Page() {
 
             {/* NOME */}
 
-            <div className="group">
+            <div>
 
               <label
                 htmlFor="titulo"
@@ -395,7 +395,7 @@ export default function Page() {
 
             {/* DESCRIÇÃO */}
 
-            <div className="group">
+            <div>
 
               <div className="mb-2 flex items-center justify-between gap-4">
 
@@ -427,7 +427,7 @@ export default function Page() {
 
             {/* GITHUB */}
 
-            <div className="group">
+            <div>
 
               <label
                 htmlFor="github"
@@ -456,7 +456,6 @@ export default function Page() {
             {/* FEEDBACK */}
 
             {feedback.message && (
-
               <p
                 role="alert"
                 className={
@@ -467,7 +466,6 @@ export default function Page() {
               >
                 {feedback.message}
               </p>
-
             )}
 
             {/* BOTÃO */}
