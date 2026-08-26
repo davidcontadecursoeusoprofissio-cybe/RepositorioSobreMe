@@ -3,60 +3,126 @@
 import { useEffect, useState } from "react";
 
 export default function Usuario() {
-  const [mensagens, setMensagens] = useState([]);
-  const [carregando, setCarregando] = useState(true);
+  const [conversas, setConversas] = useState([]);
   const [respostas, setRespostas] = useState({});
+  const [mensagensApagadas, setMensagensApagadas] = useState([]);
+  const [respostasApagadas, setRespostasApagadas] = useState([]);
 
   useEffect(() => {
+    const mensagensSalvas = JSON.parse(
+      localStorage.getItem("usuario_mensagens_apagadas") || "[]"
+    );
+
+    const respostasSalvas = JSON.parse(
+      localStorage.getItem("usuario_respostas_apagadas") || "[]"
+    );
+
+    setMensagensApagadas(mensagensSalvas);
+    setRespostasApagadas(respostasSalvas);
+
     buscarMensagens();
   }, []);
 
   async function buscarMensagens() {
     try {
-      const resposta = await fetch("/api/Contato");
+      const response = await fetch("/api/Contato");
 
-      if (!resposta.ok) {
+      if (!response.ok) {
         throw new Error("Erro ao buscar mensagens.");
       }
 
-      const dados = await resposta.json();
+      const dados = await response.json();
 
-      setMensagens(dados);
+      setConversas(dados);
     } catch (error) {
       console.error(error);
-    } finally {
-      setCarregando(false);
     }
   }
 
-  function mudarResposta(id, valor) {
-    setRespostas((atual) => ({
-      ...atual,
-      [id]: valor,
-    }));
+  // MENSAGEM DO CONTATO -> APAGAR SOMENTE PARA VOCÊ
+  function apagarMensagemParaMim(id) {
+    const novoId = Number(id);
+
+    const novas = [...mensagensApagadas, novoId];
+
+    setMensagensApagadas(novas);
+
+    localStorage.setItem(
+      "usuario_mensagens_apagadas",
+      JSON.stringify(novas)
+    );
   }
 
-  async function responder(id) {
-    const mensagem = respostas[id]?.trim();
+  // SUA RESPOSTA -> APAGAR SOMENTE PARA VOCÊ
+  function apagarRespostaParaMim(id) {
+    const novoId = Number(id);
 
-    if (!mensagem) {
-      return;
-    }
+    const novas = [...respostasApagadas, novoId];
+
+    setRespostasApagadas(novas);
+
+    localStorage.setItem(
+      "usuario_respostas_apagadas",
+      JSON.stringify(novas)
+    );
+  }
+
+  // SUA RESPOSTA -> APAGAR PARA TODOS
+  async function apagarRespostaParaTodos(id) {
+    const confirmar = window.confirm(
+      "Apagar sua mensagem para todos?"
+    );
+
+    if (!confirmar) return;
 
     try {
-      const resposta = await fetch("/api/Contato", {
+      const response = await fetch(
+        `/api/Contato?id=${id}&tipo=todos`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao apagar.");
+      }
+
+      setConversas((lista) =>
+        lista.map((conversa) => ({
+          ...conversa,
+          respostas: (conversa.respostas || []).filter(
+            (resposta) =>
+              Number(resposta.id) !== Number(id)
+          ),
+        }))
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível apagar para todos.");
+    }
+  }
+
+  // RESPONDER
+  async function responder(id) {
+    const texto = respostas[id]?.trim();
+
+    if (!texto) return;
+
+    try {
+      const response = await fetch("/api/Contato", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contato_id: id,
-          mensagem: mensagem,
+          mensagem: texto,
+          remetente: "admin",
         }),
       });
 
-      if (!resposta.ok) {
-        throw new Error("Erro ao enviar resposta.");
+      if (!response.ok) {
+        throw new Error("Erro ao responder.");
       }
 
       setRespostas((atual) => ({
@@ -67,219 +133,169 @@ export default function Usuario() {
       buscarMensagens();
     } catch (error) {
       console.error(error);
-      alert("Não foi possível enviar a resposta.");
     }
   }
 
-  async function apagarMensagem(id) {
-    const confirmar = confirm(
-      "Apagar esta mensagem somente para você?"
-    );
-
-    if (!confirmar) return;
-
-    await fetch(
-      `/api/Contato?id=${id}&tipo=contato_mim`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    setMensagens((lista) =>
-      lista.filter((mensagem) => mensagem.id !== id)
-    );
-  }
-
-  async function apagarResposta(id, tipo) {
-    const confirmar = confirm(
-      tipo === "resposta_todos"
-        ? "Apagar esta resposta para todos?"
-        : "Apagar esta resposta somente para você?"
-    );
-
-    if (!confirmar) return;
-
-    await fetch(
-      `/api/Contato?id=${id}&tipo=${tipo}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    buscarMensagens();
-  }
-
-  if (carregando) {
-    return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <p className="text-blue-600">
-          Carregando mensagens...
-        </p>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white px-4 py-8">
 
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-3xl">
 
-        {/* TÍTULO */}
-
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-slate-950">
-            Usuário
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            Suas mensagens e conversas
-          </p>
-        </div>
-
-        {/* MENSAGENS */}
+        <h1 className="mb-8 text-center text-4xl font-black text-blue-600">
+          Usuário
+        </h1>
 
         <div className="space-y-6">
 
-          {mensagens.length === 0 && (
-            <div className="rounded-lg bg-white p-6 shadow">
-              <p className="text-slate-500">
-                Nenhuma mensagem recebida.
-              </p>
-            </div>
-          )}
-
-          {mensagens.map((mensagem) => (
+          {conversas.map((contato) => (
 
             <div
-              key={mensagem.id}
-              className="overflow-hidden rounded-lg bg-blue-400 text-white shadow-xl shadow-blue-900/20"
+              key={contato.id}
+              className="rounded-lg bg-blue-400 p-5 shadow-xl"
             >
 
-              {/* CABEÇALHO */}
+              {/* MENSAGEM ORIGINAL */}
 
-              <div className="border-b border-blue-300/50 p-5">
+              {!mensagensApagadas.includes(
+                Number(contato.id)
+              ) && (
+                <div className="rounded-lg bg-slate-200 p-4 text-slate-900">
 
-                <h2 className="text-xl font-bold">
-                  {mensagem.nome}
-                </h2>
-
-                <p className="mt-1 text-sm text-blue-100">
-                  {mensagem.email}
-                </p>
-
-              </div>
-
-              {/* MENSAGEM DA PESSOA */}
-
-              <div className="p-5">
-
-                <div className="rounded-lg bg-white p-4 text-slate-900 shadow-sm">
-
-                  <p className="font-semibold text-blue-600">
-                    Mensagem recebida
-                  </p>
-
-                  <p className="mt-2 leading-6">
-                    {mensagem.mensagem}
-                  </p>
+                  <p>{contato.mensagem}</p>
 
                   <button
+                    type="button"
                     onClick={() =>
-                      apagarMensagem(mensagem.id)
+                      apagarMensagemParaMim(
+                        contato.id
+                      )
                     }
-                    className="mt-4 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-600"
+                    className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
                   >
                     Apagar para mim
                   </button>
 
                 </div>
+              )}
 
-                {/* RESPOSTAS */}
+              {/* TODAS AS MENSAGENS DA CONVERSA */}
 
-                <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-3">
 
-                  {mensagem.respostas?.map((resposta) => (
+                {(contato.respostas || []).map(
+                  (resposta) => {
 
-                    <div
-                      key={resposta.id}
-                      className="rounded-lg bg-blue-500 p-4 shadow-sm"
-                    >
+                    const id = Number(resposta.id);
 
-                      <p className="text-sm font-bold text-blue-100">
-                        Você
-                      </p>
+                    // MENSAGEM SUA
+                    if (resposta.remetente === "admin") {
 
-                      <p className="mt-2 leading-6">
-                        {resposta.mensagem}
-                      </p>
+                      if (respostasApagadas.includes(id)) {
+                        return null;
+                      }
 
-                      <div className="mt-3 flex flex-wrap gap-2">
-
-                        <button
-                          onClick={() =>
-                            apagarResposta(
-                              resposta.id,
-                              "resposta_mim"
-                            )
-                          }
-                          className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-blue-600 transition hover:bg-blue-100"
+                      return (
+                        <div
+                          key={resposta.id}
+                          className="ml-8 rounded-lg bg-green-400 p-4 text-green-950"
                         >
-                          Apagar para mim
-                        </button>
 
-                        <button
-                          onClick={() =>
-                            apagarResposta(
-                              resposta.id,
-                              "resposta_todos"
-                            )
-                          }
-                          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-600"
+                          <p>{resposta.mensagem}</p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                apagarRespostaParaMim(
+                                  resposta.id
+                                )
+                              }
+                              className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-100"
+                            >
+                              Apagar para mim
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                apagarRespostaParaTodos(
+                                  resposta.id
+                                )
+                              }
+                              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
+                            >
+                              Apagar para todos
+                            </button>
+
+                          </div>
+
+                        </div>
+                      );
+                    }
+
+                    // MENSAGEM ENVIADA PELO MEU CONTATO
+                    if (resposta.remetente === "usuario") {
+
+                      if (mensagensApagadas.includes(id)) {
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          key={resposta.id}
+                          className="ml-8 rounded-lg bg-slate-200 p-4 text-slate-900"
                         >
-                          Apagar para todos
-                        </button>
 
-                      </div>
+                          <p>{resposta.mensagem}</p>
 
-                    </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              apagarMensagemParaMim(
+                                resposta.id
+                              )
+                            }
+                            className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
+                          >
+                            Apagar para mim
+                          </button>
 
-                  ))}
-
-                </div>
-
-                {/* RESPONDER */}
-
-                <div className="mt-5 rounded-lg bg-blue-300/40 p-4">
-
-                  <p className="mb-2 text-sm font-bold text-white">
-                    Responder mensagem
-                  </p>
-
-                  <textarea
-                    value={respostas[mensagem.id] || ""}
-                    onChange={(event) =>
-                      mudarResposta(
-                        mensagem.id,
-                        event.target.value
-                      )
+                        </div>
+                      );
                     }
-                    placeholder="Digite sua resposta..."
-                    rows={3}
-                    className="w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none transition placeholder:text-blue-400 focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
-                  />
 
-                  <button
-                    onClick={() =>
-                      responder(mensagem.id)
-                    }
-                    className="mt-3 rounded-lg border-2 border-green-700 bg-green-400 px-5 py-2 font-bold text-white transition hover:bg-green-500"
-                  >
-                    Responder
-                  </button>
-
-                </div>
+                    return null;
+                  }
+                )}
 
               </div>
+
+              {/* RESPONDER */}
+
+              <textarea
+                value={respostas[contato.id] || ""}
+                onChange={(event) =>
+                  setRespostas((atual) => ({
+                    ...atual,
+                    [contato.id]:
+                      event.target.value,
+                  }))
+                }
+                placeholder="Digite sua resposta..."
+                rows={4}
+                className="mt-5 w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  responder(contato.id)
+                }
+                className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white hover:bg-green-500"
+              >
+                Responder
+              </button>
 
             </div>
 

@@ -10,7 +10,6 @@ export default function Contato() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [feedback, setFeedback] = useState({
     type: "",
     message: "",
@@ -19,8 +18,8 @@ export default function Contato() {
   function handleChange(event) {
     const { name, value } = event.target;
 
-    setFormData((current) => ({
-      ...current,
+    setFormData((atual) => ({
+      ...atual,
       [name]: value,
     }));
   }
@@ -30,28 +29,21 @@ export default function Contato() {
 
     setIsSubmitting(true);
 
-    setFeedback({
-      type: "",
-      message: "",
-    });
-
-    const payload = {
-      nome: formData.nome.trim(),
-      email: formData.email.trim(),
-      mensagem: formData.mensagem.trim(),
-    };
-
     try {
-      const response = await fetch("/api/Contato", {
+      const resposta = await fetch("/api/Contato", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          nome: formData.nome.trim(),
+          email: formData.email.trim(),
+          mensagem: formData.mensagem.trim(),
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error("Não foi possível enviar a mensagem.");
+      if (!resposta.ok) {
+        throw new Error("Não foi possível enviar.");
       }
 
       setFeedback({
@@ -66,11 +58,11 @@ export default function Contato() {
       });
 
     } catch (error) {
-      console.error("Erro ao enviar contato:", error);
+      console.error(error);
 
       setFeedback({
         type: "error",
-        message: "Ocorreu um erro ao enviar. Tente novamente.",
+        message: "Erro ao enviar mensagem.",
       });
 
     } finally {
@@ -79,101 +71,75 @@ export default function Contato() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white px-4 py-8">
 
-      <section className="mx-auto w-full max-w-3xl rounded-lg bg-blue-400 px-5 py-8 text-white shadow-xl shadow-blue-900/20 sm:px-10 sm:py-10">
-
-        {/* BOTÃO USUÁRIO */}
+      <section className="mx-auto max-w-3xl rounded-lg bg-blue-400 p-6 text-white shadow-xl">
 
         <div className="mb-6 flex justify-end">
+
           <a
             href="/Usuario"
-            className="rounded-lg bg-white px-5 py-2 font-bold text-blue-600 shadow transition hover:bg-blue-100"
+            className="rounded-lg bg-white px-5 py-2 font-bold text-blue-600 hover:bg-blue-100"
           >
             Usuário
           </a>
+
         </div>
 
-        <div className="mx-auto max-w-2xl">
+        <h1 className="mb-8 text-center text-4xl font-black">
+          Entre em Contato
+        </h1>
 
-          <h1 className="mb-8 text-center text-3xl font-extrabold sm:text-4xl">
-            Entre em Contato
-          </h1>
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
+          <input
+            name="nome"
+            type="text"
+            value={formData.nome}
+            onChange={handleChange}
+            placeholder="Seu Nome"
+            required
+            className="w-full rounded-lg border-2 border-blue-700 bg-blue-50 p-3 text-blue-950"
+          />
+
+          <input
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Seu Email"
+            required
+            className="w-full rounded-lg border-2 border-blue-700 bg-blue-50 p-3 text-blue-950"
+          />
+
+          <textarea
+            name="mensagem"
+            value={formData.mensagem}
+            onChange={handleChange}
+            placeholder="Mensagem"
+            rows={6}
+            required
+            className="w-full rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900"
+          />
+
+          {feedback.message && (
+            <p className="text-center font-bold">
+              {feedback.message}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-lg border-2 border-green-700 bg-green-400 px-7 py-3 font-bold text-white hover:bg-green-500"
           >
+            {isSubmitting ? "Enviando..." : "Enviar"}
+          </button>
 
-            {/* NOME */}
-
-            <input
-              name="nome"
-              type="text"
-              value={formData.nome}
-              onChange={handleChange}
-              placeholder="Seu Nome"
-              required
-              className="w-full rounded-lg border-2 border-blue-700 bg-blue-50 px-3 py-3 text-blue-950 outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
-            />
-
-            {/* EMAIL */}
-
-            <input
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Seu Email"
-              required
-              className="w-full rounded-lg border-2 border-blue-700 bg-blue-50 px-3 py-3 text-blue-950 outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
-            />
-
-            {/* MENSAGEM */}
-
-            <textarea
-              name="mensagem"
-              value={formData.mensagem}
-              onChange={handleChange}
-              placeholder="Mensagem"
-              rows={6}
-              required
-              className="w-full resize-y border-2 border-sky-700 bg-white px-3 py-3 text-slate-900 outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200"
-            />
-
-            {/* FEEDBACK */}
-
-            {feedback.message && (
-              <p
-                className={
-                  feedback.type === "success"
-                    ? "text-center font-medium text-green-700"
-                    : "text-center font-medium text-red-700"
-                }
-              >
-                {feedback.message}
-              </p>
-            )}
-
-            {/* ENVIAR */}
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="h-10 rounded-lg border-2 border-green-700 bg-green-400 px-7 text-base font-bold text-white transition hover:bg-green-500 disabled:opacity-60"
-              >
-                {isSubmitting
-                  ? "Enviando..."
-                  : "Enviar"}
-              </button>
-
-            </div>
-
-          </form>
-
-        </div>
+        </form>
 
       </section>
 

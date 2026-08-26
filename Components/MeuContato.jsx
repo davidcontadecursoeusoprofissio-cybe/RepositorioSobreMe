@@ -4,33 +4,57 @@ import { useEffect, useState } from "react";
 
 export default function MeuContato() {
   const [conversas, setConversas] = useState([]);
-  const [mensagem, setMensagem] = useState("");
-  const [carregando, setCarregando] = useState(true);
+  const [mensagens, setMensagens] = useState({});
+  const [apagadas, setApagadas] = useState([]);
 
   useEffect(() => {
-    buscarConversas();
+    const salvas = JSON.parse(
+      localStorage.getItem("meuContato_apagadas") || "[]"
+    );
+
+    setApagadas(salvas);
+    buscarMensagens();
   }, []);
 
-  async function buscarConversas() {
+  async function buscarMensagens() {
     try {
       const resposta = await fetch("/api/Contato");
 
       if (!resposta.ok) {
-        throw new Error("Erro ao buscar conversas.");
+        throw new Error("Erro ao buscar mensagens.");
       }
 
       const dados = await resposta.json();
 
       setConversas(dados);
     } catch (error) {
-      console.error(error);
-    } finally {
-      setCarregando(false);
+      console.error("Erro ao buscar mensagens:", error);
     }
   }
 
-  async function responder(id) {
-    if (!mensagem.trim()) return;
+  function apagarParaMim(chave) {
+    const confirmar = window.confirm(
+      "Apagar esta mensagem somente para você?"
+    );
+
+    if (!confirmar) return;
+
+    if (apagadas.includes(chave)) return;
+
+    const novasApagadas = [...apagadas, chave];
+
+    setApagadas(novasApagadas);
+
+    localStorage.setItem(
+      "meuContato_apagadas",
+      JSON.stringify(novasApagadas)
+    );
+  }
+
+  async function enviarMensagem(contatoId) {
+    const texto = mensagens[contatoId]?.trim();
+
+    if (!texto) return;
 
     try {
       const resposta = await fetch("/api/Contato", {
@@ -39,230 +63,189 @@ export default function MeuContato() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contato_id: id,
-          mensagem: mensagem.trim(),
+          contato_id: contatoId,
+          mensagem: texto,
+          remetente: "usuario",
         }),
       });
 
       if (!resposta.ok) {
-        throw new Error("Erro ao enviar resposta.");
+        throw new Error("Erro ao enviar mensagem.");
       }
 
-      setMensagem("");
+      setMensagens((atual) => ({
+        ...atual,
+        [contatoId]: "",
+      }));
 
-      buscarConversas();
+      buscarMensagens();
     } catch (error) {
-      console.error(error);
-      alert("Não foi possível enviar a resposta.");
+      console.error("Erro ao enviar mensagem:", error);
+      alert("Não foi possível enviar a mensagem.");
     }
-  }
-
-  async function apagarParaMim(id) {
-    const confirmar = confirm(
-      "Apagar esta mensagem somente para você?"
-    );
-
-    if (!confirmar) return;
-
-    try {
-      await fetch(
-        `/api/Contato?id=${id}&tipo=contato_mim`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      buscarConversas();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  async function apagarResposta(id, tipo) {
-    const confirmar = confirm(
-      tipo === "resposta_todos"
-        ? "Apagar esta resposta para todos?"
-        : "Apagar esta resposta somente para você?"
-    );
-
-    if (!confirmar) return;
-
-    try {
-      await fetch(
-        `/api/Contato?id=${id}&tipo=${tipo}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      buscarConversas();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  if (carregando) {
-    return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <p className="text-blue-600">
-          Carregando...
-        </p>
-      </main>
-    );
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-white px-4 py-8">
 
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-3xl">
 
-        <div className="mb-8">
-          <h1 className="text-4xl font-black text-slate-950">
-            Meu Contato
-          </h1>
+        <h1 className="mb-8 text-center text-4xl font-black text-blue-600">
+          Meu Contato
+        </h1>
 
-          <p className="mt-2 text-slate-500">
-            Suas conversas
+        {conversas.length === 0 ? (
+          <p className="text-center text-slate-500">
+            Nenhuma conversa encontrada.
           </p>
-        </div>
+        ) : (
+          <div className="space-y-6">
 
-        {conversas.length === 0 && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <p className="text-slate-500">
-              Nenhuma conversa encontrada.
-            </p>
-          </div>
-        )}
+            {conversas.map((contato) => {
 
-        <div className="space-y-6">
+              const chaveInicial = `contato-${contato.id}`;
 
-          {conversas.map((conversa) => (
+              return (
+                <div
+                  key={contato.id}
+                  className="rounded-xl bg-blue-400 p-5 shadow-xl"
+                >
 
-            <div
-              key={conversa.id}
-              className="overflow-hidden rounded-lg bg-blue-400 text-white shadow-xl shadow-blue-900/20"
-            >
+                  {/* MENSAGEM INICIAL DO USUÁRIO */}
 
-              {/* PESSOA */}
+                  <div className="space-y-3">
 
-              <div className="border-b border-blue-300/50 p-5">
+                    {!apagadas.includes(chaveInicial) && (
+                      <div className="flex justify-end">
 
-                <h2 className="text-xl font-bold">
-                  {conversa.nome}
-                </h2>
+                        <div className="max-w-[85%] rounded-xl bg-slate-200 p-4 text-slate-900">
 
-                <p className="mt-1 text-sm text-blue-100">
-                  {conversa.email}
-                </p>
+                          <p className="break-words">
+                            {contato.mensagem}
+                          </p>
 
-              </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              apagarParaMim(chaveInicial)
+                            }
+                            className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
+                          >
+                            Apagar para mim
+                          </button>
 
-              <div className="space-y-4 p-5">
+                        </div>
 
-                {/* MENSAGEM RECEBIDA */}
+                      </div>
+                    )}
 
-                <div className="rounded-lg bg-white p-4 text-slate-900">
+                    {/* HISTÓRICO */}
 
-                  <p className="text-sm font-bold text-blue-600">
-                    Mensagem
-                  </p>
+                    {(contato.respostas || []).map((resposta) => {
 
-                  <p className="mt-2">
-                    {conversa.mensagem}
-                  </p>
+                      const chaveResposta = `resposta-${resposta.id}`;
 
-                  <button
-                    onClick={() =>
-                      apagarParaMim(conversa.id)
-                    }
-                    className="mt-4 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
-                  >
-                    Apagar para mim
-                  </button>
-
-                </div>
-
-                {/* RESPOSTAS */}
-
-                {conversa.respostas?.map((resposta) => (
-
-                  <div
-                    key={resposta.id}
-                    className="ml-4 rounded-lg bg-blue-500 p-4 sm:ml-12"
-                  >
-
-                    <p className="text-sm font-bold text-blue-100">
-                      Você
-                    </p>
-
-                    <p className="mt-2">
-                      {resposta.mensagem}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-
-                      <button
-                        onClick={() =>
-                          apagarResposta(
-                            resposta.id,
-                            "resposta_mim"
-                          )
+                      if (
+                        resposta.remetente === "usuario"
+                      ) {
+                        if (
+                          apagadas.includes(chaveResposta)
+                        ) {
+                          return null;
                         }
-                        className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-blue-600 hover:bg-blue-100"
-                      >
-                        Apagar para mim
-                      </button>
 
-                      <button
-                        onClick={() =>
-                          apagarResposta(
-                            resposta.id,
-                            "resposta_todos"
-                          )
-                        }
-                        className="rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white hover:bg-red-600"
-                      >
-                        Apagar para todos
-                      </button>
+                        return (
+                          <div
+                            key={resposta.id}
+                            className="flex justify-end"
+                          >
 
-                    </div>
+                            <div className="max-w-[85%] rounded-xl bg-slate-200 p-4 text-slate-900">
+
+                              <p className="break-words">
+                                {resposta.mensagem}
+                              </p>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  apagarParaMim(
+                                    chaveResposta
+                                  )
+                                }
+                                className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
+                              >
+                                Apagar para mim
+                              </button>
+
+                            </div>
+
+                          </div>
+                        );
+                      }
+
+                      if (
+                        resposta.remetente === "admin"
+                      ) {
+                        return (
+                          <div
+                            key={resposta.id}
+                            className="flex justify-start"
+                          >
+
+                            <div className="max-w-[85%] rounded-xl bg-green-400 p-4 text-green-950">
+
+                              <p className="break-words">
+                                {resposta.mensagem}
+                              </p>
+
+                            </div>
+
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
 
                   </div>
 
-                ))}
+                  {/* NOVA MENSAGEM */}
 
-                {/* RESPONDER */}
+                  <div className="mt-5">
 
-                <div className="rounded-lg bg-blue-300/40 p-4">
+                    <textarea
+                      value={mensagens[contato.id] || ""}
+                      onChange={(event) =>
+                        setMensagens((atual) => ({
+                          ...atual,
+                          [contato.id]:
+                            event.target.value,
+                        }))
+                      }
+                      placeholder="Digite sua mensagem..."
+                      rows={4}
+                      className="w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
+                    />
 
-                  <textarea
-                    value={mensagem}
-                    onChange={(event) =>
-                      setMensagem(event.target.value)
-                    }
-                    placeholder="Digite sua resposta..."
-                    rows={3}
-                    className="w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
-                  />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        enviarMensagem(contato.id)
+                      }
+                      className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white hover:bg-green-500"
+                    >
+                      Enviar mensagem
+                    </button>
 
-                  <button
-                    onClick={() =>
-                      responder(conversa.id)
-                    }
-                    className="mt-3 rounded-lg border-2 border-green-700 bg-green-400 px-5 py-2 font-bold text-white hover:bg-green-500"
-                  >
-                    Responder
-                  </button>
+                  </div>
 
                 </div>
+              );
+            })}
 
-              </div>
-
-            </div>
-
-          ))}
-
-        </div>
+          </div>
+        )}
 
       </div>
 
