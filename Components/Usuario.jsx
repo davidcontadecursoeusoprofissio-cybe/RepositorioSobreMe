@@ -179,6 +179,80 @@ export default function Usuario() {
 
 
   // ==========================================
+  // APAGAR PARA TODOS
+  //
+  // SOMENTE MENSAGEM DO USUARIO
+  // ==========================================
+
+  async function apagarParaTodos(id) {
+
+    const confirmar =
+      window.confirm(
+        "Apagar sua mensagem para todos?"
+      );
+
+
+    if (!confirmar) {
+      return;
+    }
+
+
+    try {
+
+      const response = await fetch(
+
+        `/api/Contato?id=${id}&tipo=todos&remetente=usuario`,
+
+        {
+          method: "DELETE"
+        }
+
+      );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "Erro ao apagar para todos."
+        );
+
+      }
+
+
+      // REMOVE DA TELA
+      setConversas((lista) =>
+
+        lista.map((contato) => ({
+
+          ...contato,
+
+          respostas:
+            (contato.respostas || [])
+              .filter(
+                (resposta) =>
+                  Number(resposta.id) !==
+                  Number(id)
+              )
+
+        }))
+
+      );
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "Não foi possível apagar para todos."
+      );
+
+    }
+
+  }
+
+
+  // ==========================================
   // ENVIAR MENSAGEM
   // ==========================================
 
@@ -404,7 +478,7 @@ export default function Usuario() {
 
                     // =================================
                     // USUARIO
-                    // SOMENTE APAGAR PARA MIM
+                    // APAGAR PARA MIM + TODOS
                     // =================================
 
                     if (
@@ -443,6 +517,9 @@ export default function Usuario() {
 
                             <div className="mt-3 flex flex-wrap gap-2">
 
+
+                              {/* APAGAR PARA MIM */}
+
                               <button
                                 type="button"
                                 onClick={() =>
@@ -458,6 +535,24 @@ export default function Usuario() {
                                 Apagar para mim
 
                               </button>
+
+
+                              {/* APAGAR PARA TODOS */}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  apagarParaTodos(
+                                    id
+                                  )
+                                }
+                                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
+                              >
+
+                                Apagar para todos
+
+                              </button>
+
 
                             </div>
 
