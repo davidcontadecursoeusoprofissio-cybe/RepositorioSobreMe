@@ -10,10 +10,9 @@ async function abrirBanco() {
   });
 
   await db.exec(`
-    CREATE TABLE IF NOT EXISTS meu_contato_usuario (
+    CREATE TABLE IF NOT EXISTS usuario_apagadas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       mensagem_id INTEGER NOT NULL,
-      contato_id INTEGER NOT NULL,
       tipo TEXT NOT NULL
     )
   `);
@@ -21,80 +20,192 @@ async function abrirBanco() {
   return db;
 }
 
-// BUSCAR APAGADAS DO USUARIO
+
+// ======================================
+// BUSCAR
+// ======================================
+
 export async function GET() {
   try {
+
     const db = await abrirBanco();
 
     const dados = await db.all(`
       SELECT *
-      FROM meu_contato_usuario
+      FROM usuario_apagadas
       ORDER BY id ASC
     `);
 
     return NextResponse.json(dados);
 
   } catch (error) {
+
     console.error(error);
 
     return NextResponse.json(
-      { erro: "Erro ao buscar." },
-      { status: 500 }
+      {
+        erro: "Erro ao buscar apagadas."
+      },
+      {
+        status: 500
+      }
     );
   }
 }
 
-// USUARIO -> APAGAR PARA MIM
+
+// ======================================
+// APAGAR PARA MIM
+// ======================================
+
 export async function POST(request) {
   try {
+
     const dados = await request.json();
 
     const db = await abrirBanco();
 
+    const mensagemId =
+      Number(dados.mensagem_id);
+
+    const tipo =
+      dados.tipo;
+
+
     const existe = await db.get(
       `
       SELECT *
-      FROM meu_contato_usuario
+      FROM usuario_apagadas
       WHERE mensagem_id = ?
-      AND contato_id = ?
       AND tipo = ?
       `,
       [
-        dados.mensagem_id,
-        dados.contato_id,
-        dados.tipo,
+        mensagemId,
+        tipo
       ]
     );
 
+
     if (!existe) {
+
       await db.run(
         `
-        INSERT INTO meu_contato_usuario
+        INSERT INTO usuario_apagadas
         (
           mensagem_id,
-          contato_id,
           tipo
         )
-        VALUES (?, ?, ?)
+        VALUES (?, ?)
         `,
         [
-          dados.mensagem_id,
-          dados.contato_id,
-          dados.tipo,
+          mensagemId,
+          tipo
         ]
       );
+
     }
 
+
     return NextResponse.json({
-      mensagem: "Apagada para mim.",
+      mensagem:
+        "Apagada para mim."
     });
 
   } catch (error) {
+
     console.error(error);
 
     return NextResponse.json(
-      { erro: "Erro ao apagar." },
-      { status: 500 }
+      {
+        erro:
+          "Erro ao apagar para mim."
+      },
+      {
+        status: 500
+      }
+    );
+  }
+}
+
+
+// ======================================
+// APAGAR PARA TODOS
+// ======================================
+
+export async function DELETE(request) {
+  try {
+
+    const { searchParams } =
+      new URL(request.url);
+
+    const id =
+      Number(
+        searchParams.get("id")
+      );
+
+    const tipo =
+      searchParams.get("tipo");
+
+
+    if (!id) {
+
+      return NextResponse.json(
+        {
+          erro: "ID inválido."
+        },
+        {
+          status: 400
+        }
+      );
+    }
+
+
+    const db = await abrirBanco();
+
+
+    // ==================================
+    // APAGAR REGISTRO DO USUARIO
+    // ==================================
+
+    if (tipo === "todos") {
+
+      await db.run(
+        `
+        DELETE FROM usuario_apagadas
+        WHERE mensagem_id = ?
+        `,
+        [id]
+      );
+
+
+      return NextResponse.json({
+        mensagem:
+          "Mensagem apagada para todos."
+      });
+    }
+
+
+    return NextResponse.json(
+      {
+        erro: "Tipo inválido."
+      },
+      {
+        status: 400
+      }
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        erro:
+          "Erro ao apagar para todos."
+      },
+      {
+        status: 500
+      }
     );
   }
 }
