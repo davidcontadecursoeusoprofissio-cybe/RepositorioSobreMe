@@ -4,23 +4,12 @@ import { useEffect, useState } from "react";
 
 export default function Usuario() {
   const [conversas, setConversas] = useState([]);
-  const [respostas, setRespostas] = useState({});
-  const [mensagensApagadas, setMensagensApagadas] = useState([]);
-  const [respostasApagadas, setRespostasApagadas] = useState([]);
+  const [mensagens, setMensagens] = useState({});
+  const [apagadas, setApagadas] = useState([]);
 
   useEffect(() => {
-    const mensagensSalvas = JSON.parse(
-      localStorage.getItem("usuario_mensagens_apagadas") || "[]"
-    );
-
-    const respostasSalvas = JSON.parse(
-      localStorage.getItem("usuario_respostas_apagadas") || "[]"
-    );
-
-    setMensagensApagadas(mensagensSalvas);
-    setRespostasApagadas(respostasSalvas);
-
     buscarMensagens();
+    buscarApagadas();
   }, []);
 
   async function buscarMensagens() {
@@ -28,7 +17,7 @@ export default function Usuario() {
       const response = await fetch("/api/Contato");
 
       if (!response.ok) {
-        throw new Error("Erro ao buscar mensagens.");
+        throw new Error("Erro ao buscar.");
       }
 
       const dados = await response.json();
@@ -39,36 +28,75 @@ export default function Usuario() {
     }
   }
 
-  // MENSAGEM DO CONTATO -> APAGAR SOMENTE PARA VOCÊ
-  function apagarMensagemParaMim(id) {
-    const novoId = Number(id);
+  async function buscarApagadas() {
+    try {
+      const response = await fetch(
+        "/api/MeuContatoUsuario"
+      );
 
-    const novas = [...mensagensApagadas, novoId];
+      const dados = await response.json();
 
-    setMensagensApagadas(novas);
+      setApagadas(dados);
 
-    localStorage.setItem(
-      "usuario_mensagens_apagadas",
-      JSON.stringify(novas)
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  function foiApagada(id, tipo) {
+    return apagadas.some(
+      (item) =>
+        Number(item.mensagem_id) === Number(id) &&
+        item.tipo === tipo
     );
   }
 
-  // SUA RESPOSTA -> APAGAR SOMENTE PARA VOCÊ
-  function apagarRespostaParaMim(id) {
-    const novoId = Number(id);
+  // APAGAR PARA MIM
+  async function apagarParaMim(
+    mensagemId,
+    contatoId,
+    tipo
+  ) {
+    try {
+      const response = await fetch(
+        "/api/MeuContatoUsuario",
+        {
+          method: "POST",
 
-    const novas = [...respostasApagadas, novoId];
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-    setRespostasApagadas(novas);
+          body: JSON.stringify({
+            mensagem_id: Number(mensagemId),
+            contato_id: Number(contatoId),
+            tipo: tipo,
+          }),
+        }
+      );
 
-    localStorage.setItem(
-      "usuario_respostas_apagadas",
-      JSON.stringify(novas)
-    );
+      if (!response.ok) {
+        throw new Error("Erro ao apagar.");
+      }
+
+      setApagadas((atual) => [
+        ...atual,
+        {
+          mensagem_id: Number(mensagemId),
+          contato_id: Number(contatoId),
+          tipo: tipo,
+        },
+      ]);
+
+    } catch (error) {
+      console.error(error);
+    }
   }
 
-  // SUA RESPOSTA -> APAGAR PARA TODOS
-  async function apagarRespostaParaTodos(id) {
+  // APAGAR PARA TODOS
+  // SOMENTE MENSAGEM DO USUARIO
+  async function apagarParaTodos(id) {
     const confirmar = window.confirm(
       "Apagar sua mensagem para todos?"
     );
@@ -77,7 +105,7 @@ export default function Usuario() {
 
     try {
       const response = await fetch(
-        `/api/Contato?id=${id}&tipo=todos`,
+        `/api/Contato?id=${id}&tipo=todos&remetente=usuario`,
         {
           method: "DELETE",
         }
@@ -88,49 +116,61 @@ export default function Usuario() {
       }
 
       setConversas((lista) =>
-        lista.map((conversa) => ({
-          ...conversa,
-          respostas: (conversa.respostas || []).filter(
-            (resposta) =>
-              Number(resposta.id) !== Number(id)
-          ),
+        lista.map((contato) => ({
+          ...contato,
+
+          respostas:
+            (contato.respostas || []).filter(
+              (resposta) =>
+                Number(resposta.id) !==
+                Number(id)
+            ),
         }))
       );
+
     } catch (error) {
       console.error(error);
-      alert("Não foi possível apagar para todos.");
+      alert("Erro ao apagar para todos.");
     }
   }
 
-  // RESPONDER
-  async function responder(id) {
-    const texto = respostas[id]?.trim();
+  // ENVIAR
+  async function enviarMensagem(contatoId) {
+    const texto =
+      mensagens[contatoId]?.trim();
 
     if (!texto) return;
 
     try {
-      const response = await fetch("/api/Contato", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contato_id: id,
-          mensagem: texto,
-          remetente: "admin",
-        }),
-      });
+      const response = await fetch(
+        "/api/Contato",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            contato_id: contatoId,
+            mensagem: texto,
+            remetente: "usuario",
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Erro ao responder.");
+        throw new Error("Erro ao enviar.");
       }
 
-      setRespostas((atual) => ({
+      setMensagens((atual) => ({
         ...atual,
-        [id]: "",
+        [contatoId]: "",
       }));
 
       buscarMensagens();
+
     } catch (error) {
       console.error(error);
     }
@@ -154,23 +194,29 @@ export default function Usuario() {
               className="rounded-lg bg-blue-400 p-5 shadow-xl"
             >
 
-              {/* MENSAGEM ORIGINAL */}
+              {/* MENSAGEM INICIAL */}
 
-              {!mensagensApagadas.includes(
-                Number(contato.id)
+              {!foiApagada(
+                contato.id,
+                "contato"
               ) && (
+
                 <div className="rounded-lg bg-slate-200 p-4 text-slate-900">
 
-                  <p>{contato.mensagem}</p>
+                  <p>
+                    {contato.mensagem}
+                  </p>
 
                   <button
                     type="button"
                     onClick={() =>
-                      apagarMensagemParaMim(
-                        contato.id
+                      apagarParaMim(
+                        contato.id,
+                        contato.id,
+                        "contato"
                       )
                     }
-                    className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
+                    className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white"
                   >
                     Apagar para mim
                   </button>
@@ -178,19 +224,29 @@ export default function Usuario() {
                 </div>
               )}
 
-              {/* TODAS AS MENSAGENS DA CONVERSA */}
+              {/* RESPOSTAS */}
 
               <div className="mt-4 space-y-3">
 
                 {(contato.respostas || []).map(
                   (resposta) => {
 
-                    const id = Number(resposta.id);
+                    const id =
+                      Number(resposta.id);
 
-                    // MENSAGEM SUA
-                    if (resposta.remetente === "admin") {
+                    {/* MEU CONTATO */}
 
-                      if (respostasApagadas.includes(id)) {
+                    if (
+                      resposta.remetente ===
+                      "admin"
+                    ) {
+
+                      if (
+                        foiApagada(
+                          id,
+                          "admin"
+                        )
+                      ) {
                         return null;
                       }
 
@@ -200,44 +256,41 @@ export default function Usuario() {
                           className="ml-8 rounded-lg bg-green-400 p-4 text-green-950"
                         >
 
-                          <p>{resposta.mensagem}</p>
+                          <p>
+                            {resposta.mensagem}
+                          </p>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                apagarRespostaParaMim(
-                                  resposta.id
-                                )
-                              }
-                              className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-100"
-                            >
-                              Apagar para mim
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                apagarRespostaParaTodos(
-                                  resposta.id
-                                )
-                              }
-                              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
-                            >
-                              Apagar para todos
-                            </button>
-
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              apagarParaMim(
+                                id,
+                                contato.id,
+                                "admin"
+                              )
+                            }
+                            className="mt-3 rounded-lg bg-white px-4 py-2 font-bold text-blue-600"
+                          >
+                            Apagar para mim
+                          </button>
 
                         </div>
                       );
                     }
 
-                    // MENSAGEM ENVIADA PELO MEU CONTATO
-                    if (resposta.remetente === "usuario") {
+                    {/* USUARIO */}
 
-                      if (mensagensApagadas.includes(id)) {
+                    if (
+                      resposta.remetente ===
+                      "usuario"
+                    ) {
+
+                      if (
+                        foiApagada(
+                          id,
+                          "usuario"
+                        )
+                      ) {
                         return null;
                       }
 
@@ -247,19 +300,37 @@ export default function Usuario() {
                           className="ml-8 rounded-lg bg-slate-200 p-4 text-slate-900"
                         >
 
-                          <p>{resposta.mensagem}</p>
+                          <p>
+                            {resposta.mensagem}
+                          </p>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              apagarMensagemParaMim(
-                                resposta.id
-                              )
-                            }
-                            className="mt-3 rounded-lg bg-red-500 px-4 py-2 font-bold text-white hover:bg-red-600"
-                          >
-                            Apagar para mim
-                          </button>
+                          <div className="mt-3 flex gap-2">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                apagarParaMim(
+                                  id,
+                                  contato.id,
+                                  "usuario"
+                                )
+                              }
+                              className="rounded-lg bg-white px-4 py-2 font-bold text-blue-600"
+                            >
+                              Apagar para mim
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                apagarParaTodos(id)
+                              }
+                              className="rounded-lg bg-red-500 px-4 py-2 font-bold text-white"
+                            >
+                              Apagar para todos
+                            </button>
+
+                          </div>
 
                         </div>
                       );
@@ -271,18 +342,20 @@ export default function Usuario() {
 
               </div>
 
-              {/* RESPONDER */}
+              {/* NOVA MENSAGEM */}
 
               <textarea
-                value={respostas[contato.id] || ""}
+                value={
+                  mensagens[contato.id] || ""
+                }
                 onChange={(event) =>
-                  setRespostas((atual) => ({
+                  setMensagens((atual) => ({
                     ...atual,
                     [contato.id]:
                       event.target.value,
                   }))
                 }
-                placeholder="Digite sua resposta..."
+                placeholder="Digite sua mensagem..."
                 rows={4}
                 className="mt-5 w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none"
               />
@@ -290,19 +363,19 @@ export default function Usuario() {
               <button
                 type="button"
                 onClick={() =>
-                  responder(contato.id)
+                  enviarMensagem(
+                    contato.id
+                  )
                 }
-                className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white hover:bg-green-500"
+                className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white"
               >
-                Responder
+                Enviar mensagem
               </button>
 
             </div>
-
           ))}
 
         </div>
-
       </div>
 
     </main>

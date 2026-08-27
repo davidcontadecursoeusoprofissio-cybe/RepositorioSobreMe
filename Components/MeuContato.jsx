@@ -8,14 +8,11 @@ export default function MeuContato() {
   const [apagadas, setApagadas] = useState([]);
 
   useEffect(() => {
-    const salvas = JSON.parse(
-      localStorage.getItem("meuContato_apagadas") || "[]"
-    );
-
-    setApagadas(salvas);
     buscarMensagens();
+    buscarApagadas();
   }, []);
 
+  // BUSCAR CONVERSAS
   async function buscarMensagens() {
     try {
       const resposta = await fetch("/api/Contato");
@@ -27,61 +24,164 @@ export default function MeuContato() {
       const dados = await resposta.json();
 
       setConversas(dados);
+
     } catch (error) {
-      console.error("Erro ao buscar mensagens:", error);
+      console.error(error);
     }
   }
 
-  function apagarParaMim(chave) {
+  // BUSCAR O QUE O MEU CONTATO APAGOU PARA ELE
+  async function buscarApagadas() {
+    try {
+      const resposta = await fetch(
+        "/api/MeuContatoUsuario"
+      );
+
+      if (!resposta.ok) {
+        throw new Error("Erro ao buscar apagadas.");
+      }
+
+      const dados = await resposta.json();
+
+      setApagadas(
+        dados.map(
+          (item) => Number(item.mensagem_id)
+        )
+      );
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  // APAGAR PARA MIM
+  async function apagarParaMim(
+    mensagemId,
+    contatoId
+  ) {
+    const id = Number(mensagemId);
+
+    try {
+      const resposta = await fetch(
+        "/api/MeuContatoUsuario",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            contato_id:
+              Number(contatoId),
+
+            mensagem_id: id,
+
+            tipo: "mensagem"
+          })
+        }
+      );
+
+      if (!resposta.ok) {
+        throw new Error("Erro ao apagar.");
+      }
+
+      setApagadas((atual) => [
+        ...atual,
+        id
+      ]);
+
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível apagar.");
+    }
+  }
+
+  // APAGAR PARA TODOS
+  async function apagarParaTodos(id) {
     const confirmar = window.confirm(
-      "Apagar esta mensagem somente para você?"
+      "Apagar sua mensagem para todos?"
     );
 
     if (!confirmar) return;
 
-    if (apagadas.includes(chave)) return;
+    try {
+      const resposta = await fetch(
+        `/api/Contato?id=${id}&tipo=todos&remetente=admin`,
+        {
+          method: "DELETE"
+        }
+      );
 
-    const novasApagadas = [...apagadas, chave];
+      if (!resposta.ok) {
+        throw new Error("Erro ao apagar.");
+      }
 
-    setApagadas(novasApagadas);
+      setConversas((lista) =>
+        lista.map((conversa) => ({
+          ...conversa,
 
-    localStorage.setItem(
-      "meuContato_apagadas",
-      JSON.stringify(novasApagadas)
-    );
+          respostas:
+            (conversa.respostas || [])
+              .filter(
+                (item) =>
+                  Number(item.id) !==
+                  Number(id)
+              )
+        }))
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        "Não foi possível apagar para todos."
+      );
+    }
   }
 
+  // ENVIAR MENSAGEM DO MEU CONTATO
   async function enviarMensagem(contatoId) {
-    const texto = mensagens[contatoId]?.trim();
+    const texto =
+      mensagens[contatoId]?.trim();
 
     if (!texto) return;
 
     try {
-      const resposta = await fetch("/api/Contato", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contato_id: contatoId,
-          mensagem: texto,
-          remetente: "usuario",
-        }),
-      });
+      const resposta = await fetch(
+        "/api/Contato",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            contato_id: contatoId,
+            mensagem: texto,
+            remetente: "admin"
+          })
+        }
+      );
 
       if (!resposta.ok) {
-        throw new Error("Erro ao enviar mensagem.");
+        throw new Error(
+          "Erro ao enviar mensagem."
+        );
       }
 
       setMensagens((atual) => ({
         ...atual,
-        [contatoId]: "",
+        [contatoId]: ""
       }));
 
       buscarMensagens();
+
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
-      alert("Não foi possível enviar a mensagem.");
+      console.error(error);
+
+      alert(
+        "Não foi possível enviar a mensagem."
+      );
     }
   }
 
@@ -95,61 +195,78 @@ export default function MeuContato() {
         </h1>
 
         {conversas.length === 0 ? (
+
           <p className="text-center text-slate-500">
             Nenhuma conversa encontrada.
           </p>
+
         ) : (
+
           <div className="space-y-6">
 
-            {conversas.map((contato) => {
+            {conversas.map((contato) => (
 
-              const chaveInicial = `contato-${contato.id}`;
+              <div
+                key={contato.id}
+                className="rounded-xl bg-blue-400 p-5 shadow-xl"
+              >
 
-              return (
-                <div
-                  key={contato.id}
-                  className="rounded-xl bg-blue-400 p-5 shadow-xl"
-                >
+                {/* MENSAGEM INICIAL DO USUÁRIO */}
 
-                  {/* MENSAGEM INICIAL DO USUÁRIO */}
+                {!apagadas.includes(
+                  Number(contato.id)
+                ) && (
 
-                  <div className="space-y-3">
+                  <div className="flex justify-end">
 
-                    {!apagadas.includes(chaveInicial) && (
-                      <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-xl bg-slate-200 p-4 text-slate-900">
 
-                        <div className="max-w-[85%] rounded-xl bg-slate-200 p-4 text-slate-900">
+                      <p className="break-words">
+                        {contato.mensagem}
+                      </p>
 
-                          <p className="break-words">
-                            {contato.mensagem}
-                          </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          apagarParaMim(
+                            contato.id,
+                            contato.id
+                          )
+                        }
+                        className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white"
+                      >
+                        Apagar para mim
+                      </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              apagarParaMim(chaveInicial)
-                            }
-                            className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
-                          >
-                            Apagar para mim
-                          </button>
+                    </div>
 
-                        </div>
+                  </div>
 
-                      </div>
-                    )}
+                )}
 
-                    {/* HISTÓRICO */}
+                {/* HISTÓRICO */}
 
-                    {(contato.respostas || []).map((resposta) => {
+                <div className="mt-4 space-y-3">
 
-                      const chaveResposta = `resposta-${resposta.id}`;
+                  {(contato.respostas || [])
+                    .map((resposta) => {
+
+                      const id =
+                        Number(
+                          resposta.id
+                        );
+
+                      // =====================
+                      // USUÁRIO
+                      // =====================
 
                       if (
-                        resposta.remetente === "usuario"
+                        resposta.remetente ===
+                        "usuario"
                       ) {
+
                         if (
-                          apagadas.includes(chaveResposta)
+                          apagadas.includes(id)
                         ) {
                           return null;
                         }
@@ -170,10 +287,11 @@ export default function MeuContato() {
                                 type="button"
                                 onClick={() =>
                                   apagarParaMim(
-                                    chaveResposta
+                                    resposta.id,
+                                    contato.id
                                   )
                                 }
-                                className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600"
+                                className="mt-3 rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white"
                               >
                                 Apagar para mim
                               </button>
@@ -184,9 +302,21 @@ export default function MeuContato() {
                         );
                       }
 
+                      // =====================
+                      // MEU CONTATO
+                      // =====================
+
                       if (
-                        resposta.remetente === "admin"
+                        resposta.remetente ===
+                        "admin"
                       ) {
+
+                        if (
+                          apagadas.includes(id)
+                        ) {
+                          return null;
+                        }
+
                         return (
                           <div
                             key={resposta.id}
@@ -199,6 +329,35 @@ export default function MeuContato() {
                                 {resposta.mensagem}
                               </p>
 
+                              <div className="mt-3 flex flex-wrap gap-2">
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    apagarParaMim(
+                                      resposta.id,
+                                      contato.id
+                                    )
+                                  }
+                                  className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-blue-600"
+                                >
+                                  Apagar para mim
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    apagarParaTodos(
+                                      resposta.id
+                                    )
+                                  }
+                                  className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white"
+                                >
+                                  Apagar para todos
+                                </button>
+
+                              </div>
+
                             </div>
 
                           </div>
@@ -208,43 +367,52 @@ export default function MeuContato() {
                       return null;
                     })}
 
-                  </div>
+                </div>
 
-                  {/* NOVA MENSAGEM */}
+                {/* NOVA MENSAGEM */}
 
-                  <div className="mt-5">
+                <div className="mt-5">
 
-                    <textarea
-                      value={mensagens[contato.id] || ""}
-                      onChange={(event) =>
-                        setMensagens((atual) => ({
+                  <textarea
+                    value={
+                      mensagens[
+                        contato.id
+                      ] || ""
+                    }
+                    onChange={(event) =>
+                      setMensagens(
+                        (atual) => ({
                           ...atual,
                           [contato.id]:
-                            event.target.value,
-                        }))
-                      }
-                      placeholder="Digite sua mensagem..."
-                      rows={4}
-                      className="w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none focus:border-blue-900 focus:ring-4 focus:ring-blue-200"
-                    />
+                            event.target.value
+                        })
+                      )
+                    }
+                    placeholder="Digite sua mensagem..."
+                    rows={4}
+                    className="w-full resize-none rounded-lg border-2 border-blue-700 bg-white p-3 text-slate-900 outline-none"
+                  />
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        enviarMensagem(contato.id)
-                      }
-                      className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white hover:bg-green-500"
-                    >
-                      Enviar mensagem
-                    </button>
-
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      enviarMensagem(
+                        contato.id
+                      )
+                    }
+                    className="mt-3 rounded-lg bg-green-400 px-6 py-3 font-bold text-white"
+                  >
+                    Enviar mensagem
+                  </button>
 
                 </div>
-              );
-            })}
+
+              </div>
+
+            ))}
 
           </div>
+
         )}
 
       </div>
